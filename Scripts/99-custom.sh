@@ -7,7 +7,7 @@ wlan_name="ImmortalWrt"
 wlan_password="1234567890"
 #
 wlan_name_5g="ImmortalWrt-5G"
-wlan_password_5g="123456789"
+wlan_password_5g="1234567890"
 #
 root_password="password"
 lan_ip_address="192.168.2.1"
@@ -52,20 +52,7 @@ if [ -n "$wlan_name_5g" -a -n "$wlan_password_5g" -a ${#wlan_password_5g} -ge 8 
   uci commit wireless
 fi
 
-# Configure PPPoE
-# More options: https://openwrt.org/docs/guide-user/network/wan/wan_interface_protocols#protocol_pppoe_ppp_over_ethernet
-if [ -n "$pppoe_username" -a "$pppoe_password" ]; then
-  uci del network.wan6
-  uci set network.wan.proto='pppoe'
-  uci set network.wan.username="$pppoe_username"
-  uci set network.wan.password="$pppoe_password"
-  uci set network.wan.ipv6='auto'
-  uci commit network
-fi
 # Configure
 # More options: https://openwrt.org/docs/guide-user/network/network_configuration?s[]=globals&s[]=packet&s[]=steering#section_globals
-
-uci set network.globals.ula_prefix='fd00::/8'
-uci set turboacc.config.tcpcca='bbr'
 
 echo "All done!"
