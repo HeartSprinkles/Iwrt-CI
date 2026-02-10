@@ -40,7 +40,7 @@ jobs:
           repository: chasey-dev/immortalwrt-mt798x-rebase
           ref: 25.12-dev
           path: iwrt
-          filter:blob:none
+          filter: blob:none
 
       - name: 更新订阅源
         run: |
