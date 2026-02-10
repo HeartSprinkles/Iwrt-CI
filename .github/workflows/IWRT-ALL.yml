@@ -40,12 +40,14 @@ jobs:
           repository: chasey-dev/immortalwrt-mt798x-rebase
           ref: 25.12-dev
           path: iwrt
+          filter:blob:none
 
       - name: 更新订阅源
         run: |
 
           ./scripts/feeds update -a  # 更新所有feeds
           ./scripts/feeds install -a  # 安装所有feeds中的软件包
+        working-directory: iwrt
 
       - name: 自定义配置文件
         run: |
