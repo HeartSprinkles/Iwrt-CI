@@ -47,6 +47,7 @@ jobs:
 
           ./scripts/feeds update -a  # 更新所有feeds
           ./scripts/feeds install -a  # 安装所有feeds中的软件包
+
         working-directory: iwrt
 
       - name: 自定义配置文件
@@ -83,11 +84,11 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v$(date +'%y.%-m.%-d')-$(git rev-parse --short=7 HEAD) # 格式：v25.8.13-fffffff
-          name: Release $(date +'%y.%-m.%-d')-$(git rev-parse --short=7 HEAD) # 格式：Release 25.8.13-fffffff
+          name: Release $(date +'%y.%-m.%-d')-$(cd $GITHUB_WORKSPACE/iwrt && git rev-parse --short=7 HEAD) # 格式：Release 25.8.13-fffffff
           body: |
             H3C nx30pro 闭源固件
             源码: VIKINGYFY/immortalwrt
             分支: owrt
             提交: $(git log -1 --pretty=format:'%h')
-            内核版本: $(find ./bin/targets/ -type f -name "*.manifest" -exec grep -oP '^kernel - \K[\d\.]+' {} \;)
+            内核版本: $(find $GITHUB_WORKSPACE/iwrt/bin/targets/ -type f -name "*.manifest" -exec grep -oP '^kernel - \K[\d\.]+' {} \;)
           files: $GITHUB_WORKSPACE/iwrt/upload/*.*
