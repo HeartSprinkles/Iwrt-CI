@@ -1,85 +1,127 @@
-name: immortalwrt-mt798x # CI计划
+name: immortalwrt-mt798x
 
 on:
-  workflow_dispatch: # 只允许手动触发此工作流
+  workflow_dispatch:
 
 env:
   GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
 
-permissions: write-all #CI权限
+permissions: write-all
 
 jobs:
   build:
-    runs-on: ubuntu-latest # 使用Ubuntu镜像
+    runs-on: ubuntu-latest
     steps:
       - name: 检出仓库
         uses: actions/checkout@main
 
       - name: 准备编译环境
         env:
-          DEBIAN_FRONTEND: noninteractive # 设置环境变量避免安装过程中出现交互式提示
+          DEBIAN_FRONTEND: noninteractive
         run: |
+          echo "===== 清理环境 ====="
           sudo apt-get -yqq purge firefox
           sudo apt-get -yqq update
           sudo apt-get -yqq full-upgrade
           sudo apt-get -yqq autoclean
           sudo apt-get -yqq clean
 
+          echo "===== 安装依赖 ====="
           sudo apt-get -yqq install dos2unix python3-netifaces libfuse-dev
           sudo bash -c 'bash <(curl -sL https://build-scripts.immortalwrt.org/init_build_environment.sh)'
           sudo systemctl daemon-reload
           sudo timedatectl set-timezone "Asia/Shanghai"
 
+          echo "===== 创建编译目录 ====="
           sudo mkdir -p /mnt/build_iwrt
           sudo chown $USER:$USER /mnt/build_iwrt
-          sudo ln -s /mnt/build_iwrt $GITHUB_WORKSPACE/iwrt
 
       - name: 克隆源码
         uses: actions/checkout@main
         with:
           repository: chasey-dev/immortalwrt-mt798x-rebase
           ref: 25.12-dev
-          path: iwrt
+          path: /mnt/build_iwrt/immortalwrt
           filter: blob:none
 
       - name: 更新订阅源
         run: |
-
-          ./scripts/feeds update -a  # 更新所有feeds
-          ./scripts/feeds install -a  # 安装所有feeds中的软件包
-
-        working-directory: iwrt
+          cd /mnt/build_iwrt/immortalwrt
+          echo "===== 更新feeds ====="
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
 
       - name: 自定义配置文件
         run: |
-
-          cat $GITHUB_WORKSPACE/Config/.config >> .config
-
-        working-directory: iwrt
+          echo "===== 追加配置 ====="
+          cat $GITHUB_WORKSPACE/Config/.config >> /mnt/build_iwrt/immortalwrt/.config
 
       - name: 下载依赖包
         run: |
-
+          echo "===== 下载依赖 ====="
+          cd /mnt/build_iwrt/immortalwrt
           make download -j$(nproc)
-
-        working-directory: iwrt
 
       - name: 编译固件
         run: |
+          echo "===== 开始编译 ====="
+          cd /mnt/build_iwrt/immortalwrt
+          make -j$(nproc) || make -j1 V=s
 
-          make -j$(nproc) || make -j1 V=s                             # 并行编译
+      - name: 调试目录结构
+        run: |
+          echo "===== 检查编译产物目录 ====="
+          ARTIFACT_DIR="/mnt/build_iwrt/immortalwrt/bin/targets"
+          
+          if [ -d "$ARTIFACT_DIR" ]; then
+            echo "编译产物目录存在: $ARTIFACT_DIR"
+            ls -la "$ARTIFACT_DIR"
+            echo ""
+            echo "===== 查找固件文件 ====="
+            find "$ARTIFACT_DIR" -type f \( -name "*.bin" -o -name "*.trx" -o -name "*.img" \) 2>/dev/null | head -20
+          else
+            echo "错误: 编译产物目录不存在: $ARTIFACT_DIR"
+            echo "===== 查找所有可能的位置 ====="
+            find /mnt/build_iwrt -name "bin" -type d 2>/dev/null
+            find /mnt/build_iwrt -name "*.bin" 2>/dev/null | head -10
+          fi
 
-        working-directory: iwrt
+      - name: 获取版本信息
+        id: version
+        run: |
+          cd /mnt/build_iwrt/immortalwrt
+          GIT_HASH=$(git rev-parse --short=7 HEAD)
+          TAG_NAME="v$(date +'%y.%-m.%-d')-${GIT_HASH}"
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "git_hash=$GIT_HASH" >> $GITHUB_OUTPUT
+          
+          # 获取内核版本
+          MANIFEST=$(find /mnt/build_iwrt/immortalwrt/bin/targets -type f -name "*.manifest" 2>/dev/null | head -1)
+          if [ -n "$MANIFEST" ]; then
+            KERNEL_VERSION=$(grep -oP '^kernel - \K[\d\.]+' "$MANIFEST")
+            echo "kernel_version=$KERNEL_VERSION" >> $GITHUB_OUTPUT
+          else
+            echo "kernel_version=unknown" >> $GITHUB_OUTPUT
+          fi
 
       - name: 发布固件
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v$(date +'%y.%-m.%-d')-$(git rev-parse --short=7 HEAD) # 格式：v25.8.13-fffffff
-          name: Release $(date +'%y.%-m.%-d')-$(cd $GITHUB_WORKSPACE/iwrt && git rev-parse --short=7 HEAD) # 格式：Release 25.8.13-fffffff
+          tag_name: ${{ steps.version.outputs.tag_name }}
+          name: Release $(date +'%y.%-m.%-d')-${{ steps.version.outputs.git_hash }}
           body: |
             H3C nx30pro 闭源固件
-            源码: VIKINGYFY/immortalwrt
-            分支: owrt
-            提交: $(git log -1 --pretty=format:'%h')
-            内核版本: $(find $GITHUB_WORKSPACE/iwrt/bin/targets/ -type f -name "*.manifest" -exec grep -oP '^kernel - \K[\d\.]+' {} \;)
-          files: $GITHUB_WORKSPACE/iwrt/bin/targets/*.*
+
+            **编译信息**
+            - 源码: VIKINGYFY/immortalwrt
+            - 分支: owrt
+            - 提交: ${{ steps.version.outputs.git_hash }}
+            - 内核版本: ${{ steps.version.outputs.kernel_version }}
+
+            **注意事项**
+            - 请根据设备型号选择对应的固件
+            - 建议先备份原固件后再刷写
+            - 刷机有风险，请谨慎操作
+          files: /mnt/build_iwrt/immortalwrt/bin/targets/*.*
+        env:
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
