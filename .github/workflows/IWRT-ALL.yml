@@ -32,21 +32,17 @@ jobs:
           sudo systemctl daemon-reload
           sudo timedatectl set-timezone "Asia/Shanghai"
 
-          echo "===== 创建编译目录 ====="
-          sudo mkdir -p /mnt/build_iwrt
-          sudo chown $USER:$USER /mnt/build_iwrt
-
       - name: 克隆源码
         uses: actions/checkout@main
         with:
           repository: chasey-dev/immortalwrt-mt798x-rebase
           ref: 25.12-dev
-          path: /mnt/build_iwrt/immortalwrt
+          path: iwrt
           filter: blob:none
 
       - name: 更新订阅源
         run: |
-          cd /mnt/build_iwrt/immortalwrt
+          cd ./iwrt
           echo "===== 更新feeds ====="
           ./scripts/feeds update -a
           ./scripts/feeds install -a
@@ -54,24 +50,24 @@ jobs:
       - name: 自定义配置文件
         run: |
           echo "===== 追加配置 ====="
-          cat $GITHUB_WORKSPACE/Config/.config >> /mnt/build_iwrt/immortalwrt/.config
+          cat $GITHUB_WORKSPACE/Config/.config >> ./iwrt/.config
 
       - name: 下载依赖包
         run: |
           echo "===== 下载依赖 ====="
-          cd /mnt/build_iwrt/immortalwrt
+          cd ./iwrt
           make download -j$(nproc)
 
       - name: 编译固件
         run: |
           echo "===== 开始编译 ====="
-          cd /mnt/build_iwrt/immortalwrt
+          cd ./iwrt
           make -j$(nproc) || make -j1 V=s
 
       - name: 调试目录结构
         run: |
           echo "===== 检查编译产物目录 ====="
-          ARTIFACT_DIR="/mnt/build_iwrt/immortalwrt/bin/targets"
+          ARTIFACT_DIR="./iwrt/bin/targets"
           
           if [ -d "$ARTIFACT_DIR" ]; then
             echo "编译产物目录存在: $ARTIFACT_DIR"
@@ -82,21 +78,21 @@ jobs:
           else
             echo "错误: 编译产物目录不存在: $ARTIFACT_DIR"
             echo "===== 查找所有可能的位置 ====="
-            find /mnt/build_iwrt -name "bin" -type d 2>/dev/null
-            find /mnt/build_iwrt -name "*.bin" 2>/dev/null | head -10
+            find ./iwrt -name "bin" -type d 2>/dev/null
+            find ./iwrt -name "*.bin" 2>/dev/null | head -10
           fi
 
       - name: 获取版本信息
         id: version
         run: |
-          cd /mnt/build_iwrt/immortalwrt
+          cd ./iwrt
           GIT_HASH=$(git rev-parse --short=7 HEAD)
           TAG_NAME="v$(date +'%y.%-m.%-d')-${GIT_HASH}"
           echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
           echo "git_hash=$GIT_HASH" >> $GITHUB_OUTPUT
           
           # 获取内核版本
-          MANIFEST=$(find /mnt/build_iwrt/immortalwrt/bin/targets -type f -name "*.manifest" 2>/dev/null | head -1)
+          MANIFEST=$(find ./iwrt/bin/targets -type f -name "*.manifest" 2>/dev/null | head -1)
           if [ -n "$MANIFEST" ]; then
             KERNEL_VERSION=$(grep -oP '^kernel - \K[\d\.]+' "$MANIFEST")
             echo "kernel_version=$KERNEL_VERSION" >> $GITHUB_OUTPUT
@@ -113,8 +109,8 @@ jobs:
             H3C nx30pro 闭源固件
 
             **编译信息**
-            - 源码: VIKINGYFY/immortalwrt
-            - 分支: owrt
+            - 源码: hasey-dev/immortalwrt-mt798x-rebase
+            - 分支: 25.12-dev
             - 提交: ${{ steps.version.outputs.git_hash }}
             - 内核版本: ${{ steps.version.outputs.kernel_version }}
 
@@ -122,6 +118,6 @@ jobs:
             - 请根据设备型号选择对应的固件
             - 建议先备份原固件后再刷写
             - 刷机有风险，请谨慎操作
-          files: /mnt/build_iwrt/immortalwrt/bin/targets/*.*
+          files: ./iwrt/bin/targets/*.*
         env:
           GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
