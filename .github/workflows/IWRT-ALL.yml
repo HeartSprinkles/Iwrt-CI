@@ -74,8 +74,8 @@ jobs:
       - name: 自定义配置文件
         run: |
 
-          cat $GITHUB_WORKSPACE/Config/.config >> ./iwrt/.config
-          make defconfig -j$(nproc) && make clean -j$(nproc)
+          cat $GITHUB_WORKSPACE/Config/diffconfig >> ./iwrt/.config
+          make defconfig -j$(nproc)
 
       - name: 下载依赖
         run: |
