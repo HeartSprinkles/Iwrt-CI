@@ -77,6 +77,12 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
+      - name: 添加UCI配置
+        run: |
+
+          mkdir -p ./iwrt/files/etc/uci-defaults
+          cp -f ./Scripts/99-custom ./iwrt/files/etc/uci-defaults/99-custom
+
       - name: 自定义配置文件
         run: |
 
@@ -86,8 +92,8 @@ jobs:
       - name: 安装和配置自定义包
         run: |
 
-          cd ./iwrt//package/
-          ./Scripts/Packages.sh
+          cd ./iwrt/package/
+          $GITHUB_WORKSPACE/Scripts/Packages.sh
 
       - name: 下载依赖
         run: |
@@ -126,7 +132,7 @@ jobs:
           body: |
 
             **编译信息**
-            - 源码: hasey-dev/immortalwrt-mt798x-rebase
+            - 源码: chasey-dev/immortalwrt-mt798x-rebase
             - 分支: 25.12-dev
 
           files: ${{ github.workspace }}/iwrt/upload/*.*

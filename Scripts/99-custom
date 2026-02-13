@@ -1,10 +1,13 @@
 #!/bin/bash
 
+root_password="password"
 # Beware! This script will be in /rom/etc/uci-defaults/ as part of the image.
 # Uncomment lines to apply:
 # log potential errors
 
 exec >/tmp/setup.log 2>&1
+
+# Define root password
 
 [ "$(uci -q get system.@system[0].zonename)" = 'Asia/Shanghai' ] && exit 0
 
