@@ -28,6 +28,7 @@ jobs:
           sudo bash -c 'bash <(curl -sL https://build-scripts.immortalwrt.org/init_build_environment.sh)'
           sudo systemctl daemon-reload
           sudo timedatectl set-timezone "Asia/Shanghai"
+          mkdir -p ~/.ccache
 
       - name: 克隆源码
         uses: actions/checkout@main
@@ -81,7 +82,7 @@ jobs:
 
       - name: 编译固件
         run: |
-
+          export PATH="/usr/lib/ccache:$PATH"
           make -C iwrt -j$(nproc) || make -C iwrt -j1 V=s
 
       - name: 构建发布信息
@@ -112,7 +113,7 @@ jobs:
           ! -path "*/packages/*" \
           ! -name "*.json" \
           ! -name "bl2.bin" \
-          > filelist.txt
+          -printf '%P\n' | sed 's|^|iwrt/|' > filelist.txt
           echo "filelist_path=$(pwd)/filelist.txt" >> $GITHUB_OUTPUT
 
       - name: 调试文件列表
