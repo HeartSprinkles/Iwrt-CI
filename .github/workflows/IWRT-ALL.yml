@@ -106,15 +106,19 @@ jobs:
       - name: 生成发布文件列表
         id: filelist
         run: |
+
           cd iwrt
-          # 收集所有固件文件，排除不需要的中间文件
-          find bin/targets -type f \
-            ! -path "*/packages/*" \
-            ! -name "*.json" \
-            ! -name "bl2.bin" \
-            > filelist.txt
-          # 输出列表文件的绝对路径供后续步骤使用
+          find "$PWD/bin/targets" -type f \
+          ! -path "*/packages/*" \
+          ! -name "*.json" \
+          ! -name "bl2.bin" \
+          > filelist.txt
           echo "filelist_path=$(pwd)/filelist.txt" >> $GITHUB_OUTPUT
+
+      - name: 调试文件列表
+        run: |
+          echo "File list contents:"
+          cat ${{ steps.filelist.outputs.filelist_path }}
 
       - name: 发布固件
         uses: softprops/action-gh-release@v2
