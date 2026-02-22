@@ -104,17 +104,18 @@ jobs:
             echo "kernel_version=unknown" >> $GITHUB_OUTPUT
           fi
 
-      - name: 生成发布文件列表
-        id: filelist
+      - name: 生成发布文件列表 (作为逗号分隔字符串)
+        id: filelist_str
         run: |
 
           cd iwrt
-          find "$PWD/bin/targets" -type f \
+          FILE_STRING=$(find bin/targets -type f \
           ! -path "*/packages/*" \
           ! -name "*.json" \
           ! -name "bl2.bin" \
-          -printf '%P\n' | sed 's|^|iwrt/|' > filelist.txt
-          echo "filelist_path=$(pwd)/filelist.txt" >> $GITHUB_OUTPUT
+          -printf '"iwrt/%P", ')
+          FILE_STRING=${FILE_STRING%, }
+          echo "files_string=$FILE_STRING" >> $GITHUB_OUTPUT
 
       - name: 调试文件列表
         run: |
@@ -131,6 +132,5 @@ jobs:
             - 源码: chasey-dev/immortalwrt-mt798x-rebase
             - 分支: 25.12-dev
             - 内核版本: ${{ steps.meta.outputs.kernel_version }}
-          files: '@${{ steps.filelist.outputs.filelist_path }}'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          files: ${{ steps.filelist_str.outputs.files_string }}
+          overwrite_files: true
